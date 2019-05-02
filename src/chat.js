@@ -21,26 +21,19 @@ let getRandomCoord = () => {
 
 let quads = [];
 
-let numberQuads =  Math.floor( (xMax * yMax) / (messageRadius*messageRadius) );
-
-let getQuadIndexFromCoord = (coord) => {
-
-  let verticalBoxNum = Math.floor(coord.y/messageRadius) + 1;
-
-  let numQuadsInBoxAboveCoord = 0;
-  if (verticalBoxNum > 1) {
-    numQuadsInBoxAboveCoord += (verticalBoxNum-1) * quadsWide;
-  }
-
-  let horizontalBoxNum = Math.floor(coord.x/messageRadius) + 1;
-
-  let quadNum = numQuadsInBoxAboveCoord + horizontalBoxNum;
-
-  return (quadNum - 1)
+let getQuadFromCoord = (coord) => {
+  let verticalBoxNum = Math.floor(coord.y/messageRadius);
+  let horizontalBoxNum = Math.floor(coord.x/messageRadius);
+  return {x: verticalBoxNum, y: horizontalBoxNum};
 }
 
-for (let i = 0; i < numberQuads; i++) {
-  quads.push({bots: []});
+let sameQuads = (a,b) => a.x === b.x && a.y === b.y;
+
+for (let i = 0; i < quadsTall; i++) {
+  quads.push([]);
+  for (let j = 0; j < quadsWide; j++) {
+    quads[i].push([]);
+  }
 }
 
 let globalTime = process.hrtime.bigint()
@@ -80,59 +73,55 @@ let makeMovements = () => {
     }
 
     // make sure its in the right quad
-    let newQuadNum = getQuadIndexFromCoord(bot.coord);
-    if (bot.quadNum !== newQuadNum) {
-      let oldQuadNum = bot.quadNum;
-      bot.quadNum = newQuadNum;
+    let newQuad = getQuadFromCoord(bot.coord);
+    let oldQuad = bot.quadNum;
+    if (!sameQuads(bot.quad, oldQuad)) {
+      bot.quad = newQuad;
 
       // remove bot from old quad
-      quads[oldQuadNum].bots.filter( n => n != botNum );
+      quads[oldQuad.x][oldQuad.y].filter( n => n != botNum );
 
       // put bot in new quad
-      quads[newQuadNum].bots.push(botNum);
+      quads[oldQuad.x][oldQuad.y].push(botNum);
     }
   }
 }
 
-let getNeighborQuadNums = (quadNum) => {
-  let quadNums = [
-    quadNum
-  ];
+let getNeighborQuads = (quad) => {
+  let neighbors = [];
+  neighbors.push(quads[quad.x][quad.y]);
 
-  let verticalBoxNum = (quadNum - (quadNum % quadsWide)) / quadsTall;
-  let horizontalBoxNum = (quadNum % quadsWide) + 1
+  if (quad.x > 0) {
+    neighbors.push(quads[quad.x-1][quad.y]);
 
-  console.log('getting neighbor quad nums', quadNum, verticalBoxNum, horizontalBoxNum);
-
-  if (horizontalBoxNum !== 1) {
-    quadNums.push(quadNum - 1);
-  }
-  if (horizontalBoxNum !== quadsWide) {
-    quadNums.push(quadNum + 1);
+    if (quad.y > 0) {
+      neighbors.push(quads[quad.x-1][quad.y-1]);
+    }
+    if (quad.y < quadsTall - 1) {
+      neighbors.push(quads[quad.x-1][quad.y+1]);
+    }
   }
 
-  if (verticalBoxNum !== 1) {
-    quadNums.push(quadNum - quadsWide);
-  }
-  if (verticalBoxNum !== quadsTall) {
-    quadNums.push(quadNum + quadsWide);
+  if (quad.x < quadsWide - 1) {
+    neighbors.push(quads[quad.x+1][quad.y]);
+
+    if (quad.y > 0) {
+      neighbors.push(quads[quad.x+1][quad.y-1]);
+    }
+    if (quad.y < quadsTall - 1) {
+      neighbors.push(quads[quad.x+1][quad.y+1]);
+    }
   }
 
-  if (verticalBoxNum !== 1 && horizontalBoxNum !== 1) {
-    quadNums.push(quadNum - quadsWide - 1);
-  }
-  if (verticalBoxNum !== 1 && horizontalBoxNum !== quadsWide) {
-    quadNums.push(quadNum - quadsWide + 1);
+  if (quad.y > 0) {
+    neighbors.push(quads[quad.x][quad.y-1]);
   }
 
-  if (verticalBoxNum !== quadsTall && horizontalBoxNum !== 1) {
-    quadNums.push(quadNum + quadsWide - 1);
-  }
-  if (verticalBoxNum !== quadsTall && horizontalBoxNum !== quadsWide) {
-    quadNums.push(quadNum + quadsWide + 1);
+  if (quad.y < quadsTall - 1) {
+    neighbors.push(quads[quad.x][quad.y+1]);
   }
 
-  return quadNums;
+  return neighbors;
 }
 
 let distance = (a,b) => {
@@ -145,19 +134,18 @@ for (let i = 0; i < numberBots; i++) {
   let botNum = i;
   let receivedEvent = `r${i}`;
   let coord = getRandomCoord();
-  let quadNum = getQuadIndexFromCoord(coord);
+  let quad = getQuadFromCoord(coord);
 
   let bot = {
     botNum,
     coord,
-    quadNum
+    quad
   };
   bots.push(bot);
-  quads[getQuadIndexFromCoord(coord)].bots.push(botNum);
+  quads[quad.x][quad.y].push(botNum);
 
-  const _quadNum = () => quadNum;
-  const _coord = () => coord;
-  const _botNum = () => botNum;
+  const _quad = () => bots[botNum].quad;
+  const _coord = () => bots[botNum].coord;
 
   let controller = {
     onReceive: (callback) => {
@@ -169,11 +157,11 @@ for (let i = 0; i < numberBots; i++) {
     send: (data) => {
       globalTime = process.hrtime.bigint();
       makeMovements();
-      let quadNums = getNeighborQuadNums(_quadNum());
+      let quads = getNeighborQuads(_quad());
 
-      for (var quadNum in quadNums) {
-        let quad = quads[quadNum];
-        for (var otherBotNum in quad.bots) {
+      for (var i in quads) {
+        let quad = quads[i];
+        for (var otherBotNum in quad) {
           let otherBot = bots[otherBotNum];
           let d = distance(_coord(), otherBot.coord);
           if (distance(_coord(), otherBot.coord) <= messageRadius) {
