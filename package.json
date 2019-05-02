@@ -1,0 +1,19 @@
+{
+  "name": "bots",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samdup123/bots.git"
+  },
+  "author": "Sam DuPlessis",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/samdup123/bots/issues"
+  },
+  "homepage": "https://github.com/samdup123/bots#readme"
+}
