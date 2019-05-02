@@ -1,5 +1,6 @@
-const EventEmitter = require('events');
+let EventEmitter = require('events');
 let eventEmitter = new EventEmitter();
+const BotBrain = require('./BotBrain');
 
 const xMax = 52;
 const yMax = 52;
@@ -98,8 +99,10 @@ let getNeighborQuadNums = (quadNum) => {
     quadNum
   ];
 
-  let verticalBoxNum = Math.floor(coord.y/messageRadius) + 1;
-  let horizontalBoxNum = Math.floor(coord.x/messageRadius) + 1;
+  let verticalBoxNum = (quadNum - (quadNum % quadsWide)) / quadsTall;
+  let horizontalBoxNum = (quadNum % quadsWide) + 1
+
+  console.log('getting neighbor quad nums', quadNum, verticalBoxNum, horizontalBoxNum);
 
   if (horizontalBoxNum !== 1) {
     quadNums.push(quadNum - 1);
@@ -137,6 +140,7 @@ let distance = (a,b) => {
 }
 
 let bots = [];
+let controllers = [];
 for (let i = 0; i < numberBots; i++) {
   let botNum = i;
   let receivedEvent = `r${i}`;
@@ -146,37 +150,40 @@ for (let i = 0; i < numberBots; i++) {
   let bot = {
     botNum,
     coord,
-    receivedEvent,
-    quadNum,
-    controller: {
-      quadNum,
-      coord,
-      move: (speed, direction) => {
-        movements[i] = {speed, direction};
-      },
-      send: (data) => {
-        globalTime = process.hrtime.bigint();
-        makeMovements();
-        let quadNums = getNeighborQuadNums(this.quadNum);
+    quadNum
+  };
+  bots.push(bot);
+  quads[getQuadIndexFromCoord(coord)].bots.push(botNum);
 
-        for (var quadNum in quadNums) {
-          let quad = quads[quadNum];
-          for (var otherBotNum in quad.bots) {
-            let otherBot = bots[otherBotNum];
-            let d = distance(this.coord, otherBot.coord);
-            if (distance(this.coord, otherBot.coord) <= messageRadius) {
-              let signalStength = d/messageRadius;
-              eventEmitter.emit(`r${otherBotNum}`, data, signalStength);
-            }
+  const _quadNum = () => quadNum;
+  const _coord = () => coord;
+  const _botNum = () => botNum;
+
+  let controller = {
+    onReceive: (callback) => {
+      eventEmitter.on(receivedEvent, callback);
+    },
+    move: (speed, direction) => {
+      movements[i] = {speed, direction};
+    },
+    send: (data) => {
+      globalTime = process.hrtime.bigint();
+      makeMovements();
+      let quadNums = getNeighborQuadNums(_quadNum());
+
+      for (var quadNum in quadNums) {
+        let quad = quads[quadNum];
+        for (var otherBotNum in quad.bots) {
+          let otherBot = bots[otherBotNum];
+          let d = distance(_coord(), otherBot.coord);
+          if (distance(_coord(), otherBot.coord) <= messageRadius) {
+            let signalStength = d/messageRadius;
+            eventEmitter.emit(`r${otherBotNum}`, data, signalStength);
           }
         }
-
-      },
-      receivedEvent
+      }
     }
   }
 
-  bots.push(bot);
-
-  quads[getQuadIndexFromCoord(coord)].bots.push(botNum);
+  BotBrain(controller);
 }
