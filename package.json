@@ -15,5 +15,10 @@
   "bugs": {
     "url": "https://github.com/samdup123/bots/issues"
   },
-  "homepage": "https://github.com/samdup123/bots#readme"
+  "homepage": "https://github.com/samdup123/bots#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.4",
+    "@babel/preset-env": "^7.4.4"
+  }
 }
