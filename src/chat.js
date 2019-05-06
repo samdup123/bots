@@ -175,3 +175,10 @@ for (let i = 0; i < numberBots; i++) {
 
   BotBrain(controller);
 }
+
+module.exports = {
+  xMax,
+  yMax,
+  messageRadius,
+  bots,
+}
