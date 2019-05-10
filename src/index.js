@@ -1,7 +1,9 @@
 import * as PIXI from "pixi.js";
+import * as chatApp from "chat";
 
 var app = new PIXI.Application(640, 360);
 document.body.appendChild(app.view);
+
 var circle = new PIXI.Graphics();
 circle.beginFill(0x5cafe2);
 circle.drawCircle(0, 0, 80);
